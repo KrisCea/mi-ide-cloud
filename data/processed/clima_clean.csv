@@ -1,5 +1,2 @@
-Date,Temperature,Humidity
-2023-01-01,20.5,60
-2023-01-02,22.1,65
-2023-01-03,19.8,55
-2023-01-04,21.3,70
+time,interval,Temperature,windspeed,winddirection,is_day,weathercode
+2026-04-22 22:00:00,900,19.2,10.2,222,1,0

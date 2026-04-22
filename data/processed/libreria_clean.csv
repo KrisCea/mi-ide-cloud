@@ -1,5 +1,11 @@
-Title,Author,Year,Genre,UniqueKey
-Book1,Author1,2000,Fiction,1
-Book2,Author2,2005,Non-Fiction,2
-Book3,Author3,2010,Fiction,3
-Book4,Author4,2015,Sci-Fi,4
+Title,Key,Year,UniqueKey
+Pride and Prejudice,/works/OL66554W,1813,1
+Alice's Adventures in Wonderland,/works/OL138052W,1865,2
+A Christmas Carol,/works/OL32466W,1843,3
+The Picture of Dorian Gray,/works/OL8193416W,1890,4
+Wuthering Heights,/works/OL21177W,1846,5
+Adventures of Huckleberry Finn,/works/OL53908W,1876,6
+Robinson Crusoe,/works/OL45089W,1686,7
+The Scarlet Letter,/works/OL455305W,1800,8
+Hamlet,/works/OL9170454W,1603,9
+Emma,/works/OL66513W,1815,10

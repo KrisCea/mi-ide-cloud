@@ -6,69 +6,89 @@ from procesamiento.transformacion import (
     transformacion_3_clima,
     transformacion_4_titanic
 )
+from ingestion.lectura_csv import leer_datos_csv
+from ingestion.leer_batch import leer_datos_batch
+from ingestion.fuente_realtime import leer_clima_tiempo_real
+import time
 
-def crear_datos_ejemplo():
+def cargar_datos_reales():
     """
-    Crear datos de ejemplo para TITANIC, Libreria y Clima.
-    En un proyecto real, estos se cargarían desde archivos o APIs.
+    Cargar datos reales usando las funciones del ejemplo del profesor.
     """
-    # TITANIC: pequeño dataset de ejemplo
-    titanic_data = {
-        'PassengerId': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        'Survived': [0, 1, 1, 1, 0, 0, 1, 0, 1, 0],
-        'Pclass': [3, 1, 3, 1, 3, 3, 1, 3, 3, 2],
-        'Name': ['Braund', 'Cumings', 'Heikkinen', 'Futrelle', 'Allen', 'Moran', 'McCarthy', 'Palsson', 'Johnson', 'Nasser'],
-        'Sex': ['male', 'female', 'female', 'female', 'male', 'male', 'male', 'male', 'female', 'female'],
-        'Age': [22, 38, 26, 35, 35, 25, 54, 2, 27, 14],  # Incluye menores de 10
-        'SibSp': [1, 1, 0, 1, 0, 0, 0, 3, 0, 1],
-        'Parch': [0, 0, 0, 0, 0, 0, 0, 1, 2, 0],
-        'Ticket': ['A/5 21171', 'PC 17599', 'STON/O2. 3101282', '113803', '373450', '330877', '17463', '349909', '347742', '237736'],
-        'Fare': [7.25, 71.2833, 7.925, 53.1, 8.05, 8.4583, 51.8625, 21.075, 11.1333, 30.0708],
-        'Cabin': [None, 'C85', None, 'C123', None, None, 'E46', None, None, None],
-        'Embarked': ['S', 'C', 'S', 'S', 'S', 'Q', 'S', 'S', 'S', 'C']
-    }
-    df_titanic = pd.DataFrame(titanic_data)
+    almacen_datos = {}
 
-    # Libreria: dataset de libros
-    libreria_data = {
-        'Title': ['Book1', 'Book2', 'Book3', 'Book4'],
-        'Author': ['Author1', 'Author2', 'Author3', 'Author4'],
-        'Year': [2000, 2005, 2010, 2015],
-        'Genre': ['Fiction', 'Non-Fiction', 'Fiction', 'Sci-Fi']
-    }
-    df_libreria = pd.DataFrame(libreria_data)
+    print("--- Lectura de csv TITANIC")
+    almacen_datos['TITANIC'] = leer_datos_csv()
 
-    # Clima: dataset de clima
-    clima_data = {
-        'Date': ['2023-01-01', '2023-01-02', '2023-01-03', '2023-01-04'],
-        'Temperature': [20.5, 22.1, 19.8, 21.3],
-        'Humidity': [60, 65, 55, 70]
-    }
-    df_clima = pd.DataFrame(clima_data)
+    print("--- Lectura de titulos libros (Libreria)")
+    almacen_datos['Libreria'] = leer_datos_batch('fiction')  # Cambié a 'fiction' para más variedad
 
-    return df_titanic, df_libreria, df_clima
+    print("--- Lectura del clima en tiempo real (Clima)")
+    total_lecturas = []
+
+    # Tomamos 5 instantáneas para simular tiempo real
+    for i in range(5):
+        print(f"  > instantanea {i+1}...")
+        df_snap = leer_clima_tiempo_real()
+        if not df_snap.empty:
+            total_lecturas.append(df_snap)
+        time.sleep(1)  # Short delay
+
+    if total_lecturas:
+        almacen_datos['Clima'] = pd.concat(total_lecturas, ignore_index=True)
+    else:
+        almacen_datos['Clima'] = pd.DataFrame()
+
+    return almacen_datos
 
 def limpiar_y_estandarizar(df, nombre):
     """
     Identificar y eliminar registros incompletos, duplicados o irrelevantes.
-    Estandarizar formatos.
+    Estandarizar formatos y nombres de columnas.
     """
+    # Estandarizar nombres de columnas según el dataset
+    if nombre == 'TITANIC':
+        rename_dict = {
+            '2urvived': 'Survived',
+            'Passengerid': 'PassengerId',
+            'sibsp': 'SibSp',
+            'zero': 'Zero',  # Pero probablemente eliminar columnas zero
+        }
+        df = df.rename(columns=rename_dict)
+        # Eliminar columnas irrelevantes (zero columns)
+        zero_cols = [col for col in df.columns if col.startswith('zero') or col.startswith('Zero')]
+        df = df.drop(columns=zero_cols, errors='ignore')
+        # Subset para dropna
+        subset_cols = ['Survived', 'Age'] if 'Survived' in df.columns and 'Age' in df.columns else []
+    elif nombre == 'Libreria':
+        rename_dict = {
+            'title': 'Title',
+            'key': 'Key',
+            'first_publish_year': 'Year'
+        }
+        df = df.rename(columns=rename_dict)
+        subset_cols = ['Title']
+    elif nombre == 'Clima':
+        rename_dict = {
+            'temperature': 'Temperature'
+        }
+        df = df.rename(columns=rename_dict)
+        subset_cols = ['Temperature'] if 'Temperature' in df.columns else []
+
     # Eliminar duplicados
     df = df.drop_duplicates()
 
     # Eliminar filas con valores nulos críticos
-    if nombre == 'TITANIC':
-        df = df.dropna(subset=['Survived', 'Age'])
-    elif nombre == 'Libreria':
-        df = df.dropna(subset=['Title'])
-    elif nombre == 'Clima':
-        df = df.dropna(subset=['Temperature'])
+    if subset_cols:
+        df = df.dropna(subset=subset_cols)
 
     # Estandarizar formatos
     if 'Age' in df.columns:
         df['Age'] = pd.to_numeric(df['Age'], errors='coerce')
-    if 'Date' in df.columns:
-        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+    if 'Year' in df.columns:
+        df['Year'] = pd.to_numeric(df['Year'], errors='coerce')
+    if 'time' in df.columns:
+        df['time'] = pd.to_datetime(df['time'], errors='coerce')
     if 'Temperature' in df.columns:
         df['Temperature'] = pd.to_numeric(df['Temperature'], errors='coerce')
 
@@ -76,26 +96,27 @@ def limpiar_y_estandarizar(df, nombre):
 
 def run_pipeline():
     """
-    Orquestador principal: carga datos, limpia, transforma y guarda.
+    Orquestador principal: carga datos reales, limpia, transforma y guarda.
     """
     print("Iniciando pipeline de procesamiento de datos...")
 
-    # Crear datos de ejemplo
-    print("Creando datos de ejemplo...")
-    df_titanic, df_libreria, df_clima = crear_datos_ejemplo()
+    # Cargar datos reales
+    print("Cargando datos reales...")
+    almacen_datos = cargar_datos_reales()
+
+    print("--- Resumen de datos sin transformar")
+    for elemento, df in almacen_datos.items():
+        print(f"\n📍 FUENTE: {elemento}")
+        if not df.empty:
+            print(f"Rows: {len(df)} | Columns: {list(df.columns)}")
+            print(df.head(2))
+        else:
+            print("Empty Table (Check connection)")
 
     # Limpiar y estandarizar
-    print("Limpiando y estandarizando datos...")
-    df_titanic = limpiar_y_estandarizar(df_titanic, 'TITANIC')
-    df_libreria = limpiar_y_estandarizar(df_libreria, 'Libreria')
-    df_clima = limpiar_y_estandarizar(df_clima, 'Clima')
-
-    # Crear almacen_datos
-    almacen_datos = {
-        'TITANIC': df_titanic,
-        'Libreria': df_libreria,
-        'Clima': df_clima
-    }
+    print("\nLimpiando y estandarizando datos...")
+    for nombre, df in almacen_datos.items():
+        almacen_datos[nombre] = limpiar_y_estandarizar(df, nombre)
 
     # Ejecutar transformaciones
     print("Ejecutando transformaciones...")
@@ -107,9 +128,9 @@ def run_pipeline():
     # Guardar versiones limpias
     print("Guardando versiones limpias en /data/processed/...")
     os.makedirs('/workspaces/mi-ide-cloud/data/processed', exist_ok=True)
-    almacen_datos['TITANIC'].to_csv('/workspaces/mi-ide-cloud/data/processed/titanic_clean.csv', index=False)
-    almacen_datos['Libreria'].to_csv('/workspaces/mi-ide-cloud/data/processed/libreria_clean.csv', index=False)
-    almacen_datos['Clima'].to_csv('/workspaces/mi-ide-cloud/data/processed/clima_clean.csv', index=False)
+    for key, df in almacen_datos.items():
+        if isinstance(df, pd.DataFrame):
+            df.to_csv(f'/workspaces/mi-ide-cloud/data/processed/{key.lower()}_clean.csv', index=False)
 
     # Imprimir resumen
     print("\nResumen de entradas en almacen_datos:")
