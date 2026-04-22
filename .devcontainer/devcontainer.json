@@ -12,7 +12,7 @@
 "vscode": {
 "extensions": [
 "ms-python.python",
-"ckotzb.postgresql" // Extensión para ver tablas en VS Code
+"ckotzb.postgresql"
 ]
 }
 },
