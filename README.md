@@ -32,7 +32,7 @@ Este proyecto procesa datasets reales de TITANIC, Libreria y Clima aplicando tra
 
 ## Uso
 
-Ejecutar `python pipeline.py` para procesar los datos y ver el resumen en terminal. Requiere entorno virtual activado con dependencias instaladas.
+Ejecutar `python pipeline.py` para procesar los datos y ver el resumen en terminal. Todos los resultados se almacenan en el diccionario `almacen_datos` y las versiones limpias de los datasets se guardan en `data/processed/`.
 
 ## Dependencias
 - pandas

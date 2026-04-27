@@ -46,20 +46,26 @@ def limpiar_y_estandarizar(df, nombre):
     Identificar y eliminar registros incompletos, duplicados o irrelevantes.
     Estandarizar formatos y nombres de columnas.
     """
+    df = df.copy()
+
     # Estandarizar nombres de columnas según el dataset
     if nombre == 'TITANIC':
         rename_dict = {
             '2urvived': 'Survived',
             'Passengerid': 'PassengerId',
             'sibsp': 'SibSp',
-            'zero': 'Zero',  # Pero probablemente eliminar columnas zero
+            'sex': 'Sex',
+            'pclass': 'Pclass',
+            'name': 'Name',
+            'age': 'Age',
+            'fare': 'Fare',
+            'embarked': 'Embarked'
         }
         df = df.rename(columns=rename_dict)
-        # Eliminar columnas irrelevantes (zero columns)
-        zero_cols = [col for col in df.columns if col.startswith('zero') or col.startswith('Zero')]
-        df = df.drop(columns=zero_cols, errors='ignore')
-        # Subset para dropna
-        subset_cols = ['Survived', 'Age'] if 'Survived' in df.columns and 'Age' in df.columns else []
+        # Eliminar columnas irrelevantes
+        skip_cols = [col for col in df.columns if col.lower().startswith('zero') or col.lower().startswith('unnamed')]
+        df = df.drop(columns=skip_cols, errors='ignore')
+        subset_cols = [col for col in ['Survived', 'Age'] if col in df.columns]
     elif nombre == 'Libreria':
         rename_dict = {
             'title': 'Title',
@@ -67,32 +73,51 @@ def limpiar_y_estandarizar(df, nombre):
             'first_publish_year': 'Year'
         }
         df = df.rename(columns=rename_dict)
-        subset_cols = ['Title']
+        subset_cols = [col for col in ['Title', 'Key'] if col in df.columns]
     elif nombre == 'Clima':
         rename_dict = {
-            'temperature': 'Temperature'
+            'temperature': 'Temperature',
+            'time': 'time',
+            'windspeed': 'windspeed',
+            'winddirection': 'winddirection'
         }
         df = df.rename(columns=rename_dict)
         subset_cols = ['Temperature'] if 'Temperature' in df.columns else []
+    else:
+        subset_cols = []
 
-    # Eliminar duplicados
-    df = df.drop_duplicates()
-
-    # Eliminar filas con valores nulos críticos
+    # Eliminar duplicados e incompletos
+    df = df.drop_duplicates(ignore_index=True)
     if subset_cols:
         df = df.dropna(subset=subset_cols)
 
-    # Estandarizar formatos
+    # Tipos de datos y estandarización
     if 'Age' in df.columns:
         df['Age'] = pd.to_numeric(df['Age'], errors='coerce')
+        df = df[df['Age'] >= 0]
+    if 'Survived' in df.columns:
+        df['Survived'] = pd.to_numeric(df['Survived'], errors='coerce').astype('Int64')
     if 'Year' in df.columns:
-        df['Year'] = pd.to_numeric(df['Year'], errors='coerce')
-    if 'time' in df.columns:
-        df['time'] = pd.to_datetime(df['time'], errors='coerce')
+        df['Year'] = pd.to_numeric(df['Year'], errors='coerce').astype('Int64')
     if 'Temperature' in df.columns:
         df['Temperature'] = pd.to_numeric(df['Temperature'], errors='coerce')
+    if 'time' in df.columns:
+        df['time'] = pd.to_datetime(df['time'], errors='coerce')
+    for text_col in df.select_dtypes(include=['object', 'string']).columns:
+        df[text_col] = df[text_col].astype(str).str.strip()
+        if text_col in ['Name', 'Title', 'Sex', 'Embarked']:
+            df[text_col] = df[text_col].str.title()
 
     return df
+
+def guardar_versiones_limpias(almacen_datos, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    for key, value in almacen_datos.items():
+        if isinstance(value, pd.DataFrame) and key in ['TITANIC', 'Libreria', 'Clima']:
+            file_path = os.path.join(output_dir, f"{key.lower()}_clean.csv")
+            value.to_csv(file_path, index=False)
+            print(f"  Guardado: {file_path}")
+
 
 def run_pipeline():
     """
@@ -127,10 +152,7 @@ def run_pipeline():
 
     # Guardar versiones limpias
     print("Guardando versiones limpias en /data/processed/...")
-    os.makedirs('/workspaces/mi-ide-cloud/data/processed', exist_ok=True)
-    for key, df in almacen_datos.items():
-        if isinstance(df, pd.DataFrame):
-            df.to_csv(f'/workspaces/mi-ide-cloud/data/processed/{key.lower()}_clean.csv', index=False)
+    guardar_versiones_limpias(almacen_datos, '/workspaces/mi-ide-cloud/data/processed')
 
     # Imprimir resumen
     print("\nResumen de entradas en almacen_datos:")
